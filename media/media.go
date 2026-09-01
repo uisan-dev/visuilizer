@@ -3,12 +3,12 @@ package media
 type Format string
 
 const (
-	TV                 = "TV"
-	TVShort            = "TV_SHORT"
-	Movie              = "MOVIE"
-	Special            = "SPECIAL"
-	OVA                = "OVA"
-	ONA                = "ONA"
+	TV          Format = "TV"
+	TVShort     Format = "TV_SHORT"
+	Movie       Format = "MOVIE"
+	Special     Format = "SPECIAL"
+	OVA         Format = "OVA"
+	ONA         Format = "ONA"
 	OtherFormat Format = "OTHER"
 )
 
@@ -37,7 +37,7 @@ const (
 type Entry struct {
 	ID       int
 	Title    string
-	Format   string
+	Format   Format
 	Episodes int
 	Year     int
 }

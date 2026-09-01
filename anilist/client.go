@@ -27,7 +27,7 @@ func NewClient() *Client {
 func (c *Client) FetchMedia(id int) (media.Entry, []media.Relation, error) {
 	<-c.Limiter.C
 	body, err := json.Marshal(GraphQLRequest{
-		Query:     mediaQuery,
+		Query:     MediaQuery,
 		Variables: map[string]any{"id": id},
 	})
 

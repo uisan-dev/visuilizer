@@ -26,8 +26,8 @@ type Media struct {
 		Romaji  string  `json:"romaji"`
 		English *string `json:"english"`
 	} `json:"title"`
-	Format    string `json:"format"`
-	Episodes  *int   `json:"episodes"`
+	Format    media.Format `json:"format"`
+	Episodes  *int         `json:"episodes"`
 	StartDate struct {
 		Year *int `json:"year"`
 	} `json:"startDate"`
@@ -38,7 +38,7 @@ type Media struct {
 
 func (m *Media) ToEntry() media.Entry {
 	title := m.Title.Romaji
-	if m.Title.English != nil {
+	if *m.Title.English != "" {
 		title = *m.Title.English
 	}
 
@@ -64,24 +64,24 @@ func (m *Media) ToEntry() media.Entry {
 func (m *Media) GetRelations() []media.Relation {
 	var relations []media.Relation
 	for _, re := range m.Relations.Edges {
-		nodeFormat := media.Format(re.Node.Format)
-		nodeRelation := media.RelationKind(re.RelationType)
-		if nodeFormat.IsAnime() || nodeRelation.FollowForFranchise() {
-			relations = append(relations, media.Relation{
-				FromID: m.ID,
-				ToID:   re.Node.ID,
-				Kind:   media.RelationKind(re.RelationType),
-			})
+		if !re.Node.Format.IsAnime() || !re.RelationType.FollowForFranchise() {
+			continue
 		}
+		relations = append(relations, media.Relation{
+			FromID: m.ID,
+			ToID:   re.Node.ID,
+			Kind:   re.RelationType,
+		})
+
 	}
 
 	return relations
 }
 
 type RelationEdge struct {
-	RelationType string `json:"relationType"`
+	RelationType media.RelationKind `json:"relationType"`
 	Node         struct {
-		ID     int    `json:"id"`
-		Format string `json:"format"`
+		ID     int          `json:"id"`
+		Format media.Format `json:"format"`
 	} `json:"node"`
 }
