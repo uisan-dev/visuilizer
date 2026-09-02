@@ -1,12 +1,11 @@
 package api
 
 type EntryResponse struct {
-	ID        int                `json:"id"`
-	Title     string             `json:"title"`
-	Relations []RelationResponse `json:"relations"`
-	Format    string             `json:"format"`
-	Episodes  int                `json:"episodes"`
-	Year      int                `json:"year"`
+	ID       int    `json:"id"`
+	Title    string `json:"title"`
+	Format   string `json:"format"`
+	Episodes int    `json:"episodes"`
+	Year     int    `json:"year"`
 }
 
 type RelationResponse struct {

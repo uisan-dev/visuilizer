@@ -17,39 +17,38 @@ func (s *Server) HandleHealth(c *gin.Context) {
 func (s *Server) HandleGetMedia(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "ID must be a number"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "ID must be a number"}})
 		return
 	}
 
 	entry, relations, err := s.Client.FetchMedia(id)
 	if errors.Is(err, anilist.ErrNotFound) {
-		c.JSON(http.StatusNotFound, gin.H{"error": "No media with that ID"})
+		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "No media with that ID"}})
 		return
 	}
 
 	if err != nil {
-		c.JSON(http.StatusBadGateway, gin.H{"error": "Unable to fetch media"})
+		c.JSON(http.StatusBadGateway, gin.H{"error": gin.H{"message": "Unable to fetch media"}})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"data": MediaResponse{
 		Entry:     ToEntryResponse(entry),
 		Relations: ToRelationResponses(relations),
-	}}
-)
+	}})
 }
 
 func (s *Server) HandleGetFranchise(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "ID must be a number"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "ID must be a number"}})
 		return
 	}
 
 	entries, relations, errs := s.Client.FetchFranchise(id)
 
 	if len(entries) == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "No franchise found for that ID"})
+		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "No franchise found for that ID"}})
 		return
 	}
 
@@ -58,9 +57,8 @@ func (s *Server) HandleGetFranchise(c *gin.Context) {
 	}
 
 	resp := FranchiseResponse{
-		SeedID:    id,
-		Entries:   make([]EntryResponse, 0, len(entries)),
-		Relations: make([]RelationResponse, 0, len(relations)),
+		SeedID:  id,
+		Entries: make([]EntryResponse, 0, len(entries)),
 	}
 
 	for _, e := range entries {
@@ -74,12 +72,11 @@ func (s *Server) HandleGetFranchise(c *gin.Context) {
 
 func ToEntryResponse(e media.Entry) EntryResponse {
 	return EntryResponse{
-		ID:        e.ID,
-		Title:     e.Title,
-		Relations: nil,
-		Format:    string(e.Format),
-		Episodes:  e.Episodes,
-		Year:      e.Year,
+		ID:       e.ID,
+		Title:    e.Title,
+		Format:   string(e.Format),
+		Episodes: e.Episodes,
+		Year:     e.Year,
 	}
 }
 
