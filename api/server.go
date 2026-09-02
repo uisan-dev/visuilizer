@@ -2,17 +2,21 @@ package api
 
 import (
 	"visuilizer/anilist"
+	"visuilizer/importer"
+	"visuilizer/store"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
 
 type Server struct {
-	Client *anilist.Client
+	Client   *anilist.Client
+	Store    *store.Store
+	Importer *importer.Importer
 }
 
-func NewServer(client *anilist.Client) *Server {
-	return &Server{Client: client}
+func NewServer(client *anilist.Client, store *store.Store) *Server {
+	return &Server{Client: client, Store: store, Importer: importer.NewImporter(client, store)}
 }
 
 func (s *Server) Router() *gin.Engine {
@@ -29,6 +33,9 @@ func (s *Server) Router() *gin.Engine {
 	{
 		v1.GET("/media/:id", s.HandleGetMedia)
 		v1.GET("/franchise/:id", s.HandleGetFranchise)
+
+		v1.POST("/import/:id", s.HandleImport)
+		v1.GET("/import/:id", s.HandleImportStatus)
 	}
 
 	return r

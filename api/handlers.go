@@ -4,10 +4,10 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
-	"visuilizer/anilist"
 	"visuilizer/media"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 func (s *Server) HandleHealth(c *gin.Context) {
@@ -21,8 +21,8 @@ func (s *Server) HandleGetMedia(c *gin.Context) {
 		return
 	}
 
-	entry, relations, err := s.Client.FetchMedia(id)
-	if errors.Is(err, anilist.ErrNotFound) {
+	entry, relations, err := s.Store.LoadEntryByID(id)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "No media with that ID"}})
 		return
 	}
@@ -33,7 +33,7 @@ func (s *Server) HandleGetMedia(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"data": MediaResponse{
-		Entry:     ToEntryResponse(entry),
+		Entry:     ToEntryResponse(*entry),
 		Relations: ToRelationResponses(relations),
 	}})
 }
@@ -45,15 +45,16 @@ func (s *Server) HandleGetFranchise(c *gin.Context) {
 		return
 	}
 
-	entries, relations, errs := s.Client.FetchFranchise(id)
+	entries, relations, err := s.Store.LoadFranchise(id)
+
+	if err != nil {
+		c.Error(err)
+		return
+	}
 
 	if len(entries) == 0 {
 		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "No franchise found for that ID"}})
 		return
-	}
-
-	for _, e := range errs {
-		c.Error(e)
 	}
 
 	resp := FranchiseResponse{
@@ -68,6 +69,40 @@ func (s *Server) HandleGetFranchise(c *gin.Context) {
 	resp.Relations = ToRelationResponses(relations)
 
 	c.JSON(http.StatusOK, gin.H{"data": resp})
+}
+
+func (s *Server) HandleImport(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "ID must be a number"}})
+		return
+	}
+
+	job, started := s.Importer.Start(id)
+
+	status := http.StatusAccepted
+	if !started {
+		status = http.StatusOK
+	}
+
+	c.JSON(status, gin.H{"data": job})
+}
+
+func (s *Server) HandleImportStatus(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "ID must be a number"}})
+		return
+	}
+
+	job, ok := s.Importer.Status(id)
+
+	if !ok {
+		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"message": "No import job for that ID"}})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": job})
 }
 
 func ToEntryResponse(e media.Entry) EntryResponse {

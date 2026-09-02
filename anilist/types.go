@@ -40,10 +40,6 @@ type Media struct {
 }
 
 func (m *Media) ToEntry() media.Entry {
-	title := m.Title.Romaji
-	if m.Title.English != nil && *m.Title.English != "" {
-		title = *m.Title.English
-	}
 
 	episodes := 0
 	if m.Episodes != nil {
@@ -55,13 +51,18 @@ func (m *Media) ToEntry() media.Entry {
 		year = *m.StartDate.Year
 	}
 
-	return media.Entry{
+	e := media.Entry{
 		ID:       m.ID,
-		Title:    title,
+		Title:    m.Title.Romaji,
 		Format:   m.Format,
 		Episodes: episodes,
 		Year:     year,
 	}
+
+	if m.Title.English != nil && *m.Title.English != "" {
+		e.TitleEnglish = *m.Title.English
+	}
+	return e
 }
 
 func (m *Media) GetRelations() []media.Relation {

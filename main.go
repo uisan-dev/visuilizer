@@ -11,13 +11,18 @@ import (
 	"time"
 	"visuilizer/anilist"
 	"visuilizer/api"
+	"visuilizer/store"
 )
 
 func main() {
 	// bakemonogatariID := 5081
 
 	client := anilist.NewClient()
-	server := api.NewServer(client)
+	st, err := store.Open("visuilizer.db")
+	if err != nil {
+		log.Fatalf("Error opening database: %s", err.Error())
+	}
+	server := api.NewServer(client, st)
 
 	srv := &http.Server{
 		Addr:    ":8080",

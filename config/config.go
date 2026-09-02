@@ -7,4 +7,5 @@ const (
 	ClientTimeout         = 15 * time.Second
 	ClientLimiterDuration = 1 * time.Second
 	Debug                 = true
+	MaxJobInMemoryPeriod  = 1 * time.Hour
 )

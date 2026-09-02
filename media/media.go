@@ -35,11 +35,12 @@ const (
 )
 
 type Entry struct {
-	ID       int
-	Title    string
-	Format   Format
-	Episodes int
-	Year     int
+	ID           int
+	Title        string
+	TitleEnglish string
+	Format       Format
+	Episodes     int
+	Year         int
 }
 
 func (f Format) IsAnime() bool {
