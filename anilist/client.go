@@ -51,6 +51,18 @@ func (c *Client) FetchMedia(id int) (media.Entry, []media.Relation, error) {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+		return media.Entry{}, nil, fmt.Errorf("anilist: status %s: %s",
+			resp.Status, strings.TrimSpace(string(body)))
+	}
+
+	if ct := resp.Header.Get("Content-Type"); !strings.Contains(ct, "json") {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 256))
+		return media.Entry{}, nil, fmt.Errorf("anilist: expected JSON, got %s: %s",
+			ct, strings.TrimSpace(string(body)))
+	}
+
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return media.Entry{}, nil, err
@@ -67,7 +79,12 @@ func (c *Client) FetchMedia(id int) (media.Entry, []media.Relation, error) {
 		for _, m := range gqlResp.Errors {
 			messages = append(messages, m.Message)
 		}
-		return media.Entry{}, nil, fmt.Errorf("AniList GraphQL: %s", strings.Join(messages, ", "))
+		joined := strings.Join(messages, ", ")
+
+		if strings.Contains(joined, "temporarily disabled") {
+			return media.Entry{}, nil, fmt.Errorf("%w: %s", ErrAPIUnavailable, joined)
+		}
+		return media.Entry{}, nil, fmt.Errorf("AniList GraphQL: %s", joined)
 	}
 
 	if gqlResp.Data == nil || gqlResp.Data.Media == nil {
@@ -104,6 +121,10 @@ func (c *Client) FetchFranchise(seedID int) ([]media.Entry, []media.Relation, []
 		if err != nil {
 			debug.Debugf("FetchMedia error: %s\n", err.Error())
 			errs = append(errs, err)
+			if strings.Contains(err.Error(), "temporarily unavailable") {
+				break
+			}
+			continue
 		}
 
 		entries = append(entries, entry)

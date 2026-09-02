@@ -32,10 +32,18 @@ func (s *Server) Router() *gin.Engine {
 	v1 := r.Group("/api/v1")
 	{
 		v1.GET("/media/:id", s.HandleGetMedia)
+
 		v1.GET("/franchise/:id", s.HandleGetFranchise)
+		v1.POST("/franchise/:id/layouts", s.HandleSaveLayout)
+		v1.GET("/franchise/:id/layouts", s.HandleListLayouts)
 
 		v1.POST("/import/:id", s.HandleImport)
 		v1.GET("/import/:id", s.HandleImportStatus)
+
+		v1.GET("/layouts/:id", s.HandleGetLayout)
+		v1.GET("/layouts/:id/svg", s.HandleGetLayoutSVG)
+
+		v1.GET("/graph/:id", s.HandleGetGraph)
 	}
 
 	return r

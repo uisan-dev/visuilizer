@@ -14,15 +14,6 @@ const (
 
 type RelationKind string
 
-func (rk RelationKind) FollowForFranchise() bool {
-	switch rk {
-	case Prequel, Sequel, SideStory, Summary, Alternative, Parent, SpinOff:
-		return true
-	default:
-		return false
-	}
-}
-
 const (
 	Prequel       RelationKind = "PREQUEL"
 	Sequel        RelationKind = "SEQUEL"
@@ -33,6 +24,24 @@ const (
 	SpinOff       RelationKind = "SPIN_OFF"
 	OtherRelation RelationKind = "OTHER"
 )
+
+func (rk RelationKind) FollowForFranchise() bool {
+	switch rk {
+	case Prequel, Sequel, SideStory, Summary, Alternative, Parent, SpinOff:
+		return true
+	default:
+		return false
+	}
+}
+
+func (rk RelationKind) IsForward() bool {
+	switch rk {
+	case Sequel, SideStory, Summary:
+		return true
+	default:
+		return false
+	}
+}
 
 type Entry struct {
 	ID           int

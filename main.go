@@ -24,14 +24,17 @@ func main() {
 	}
 	server := api.NewServer(client, st)
 
-	srv := &http.Server{
+	stopCleanup := make(chan struct{})
+	go server.Importer.StartCleanup(stopCleanup)
+
+	httpSrv := &http.Server{
 		Addr:    ":8080",
 		Handler: server.Router(),
 	}
 
 	go func() {
 		log.Println("Listening on port 8080")
-		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		if err := httpSrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Fatalf("server listen: %v", err)
 		}
 	}()
@@ -39,12 +42,13 @@ func main() {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 	<-stop
+	close(stopCleanup)
 
 	log.Println("Shutting down Visuilizer server")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	if err := srv.Shutdown(ctx); err != nil {
+	if err := httpSrv.Shutdown(ctx); err != nil {
 		log.Printf("server shutdown: %v", err)
 	}
 

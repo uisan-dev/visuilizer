@@ -1,6 +1,7 @@
 package importer
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"sync"
@@ -14,8 +15,9 @@ type Importer struct {
 	client *anilist.Client
 	store  *store.Store
 
-	mu   sync.Mutex
-	jobs map[int]*Job
+	mu     sync.Mutex
+	jobs   map[int]*Job
+	ticker *time.Ticker
 }
 
 func NewImporter(client *anilist.Client, st *store.Store) *Importer {
@@ -23,6 +25,7 @@ func NewImporter(client *anilist.Client, st *store.Store) *Importer {
 		client: client,
 		store:  st,
 		jobs:   make(map[int]*Job),
+		ticker: time.NewTicker(config.MaxJobInMemoryPeriod),
 	}
 }
 
@@ -41,12 +44,19 @@ func (i *Importer) Start(seedID int) (Job, bool) {
 			return *existing, false
 		}
 	}
-	if fetchedAt, ok := i.store.FranchiseFetchedAt(seedID); ok && time.Since(fetchedAt) < config.MaxJobInMemoryPeriod {
-		return Job{
+	fetchedAt, ok := i.store.FranchiseFetchedAt(seedID)
+	log.Printf("DEBUG cooldown check: seed=%d ok=%v fetchedAt=%v since=%v limit=%v",
+		seedID, ok, fetchedAt, time.Since(fetchedAt), config.MaxJobInMemoryPeriod)
+	if ok && time.Since(fetchedAt) < config.MaxJobInMemoryPeriod {
+		job := &Job{
 			SeedID:  seedID,
 			Status:  StatusDone,
 			EndedAt: &fetchedAt,
-		}, false
+		}
+
+		i.jobs[seedID] = job
+
+		return *job, false
 	}
 
 	job := &Job{
@@ -89,6 +99,18 @@ func (i *Importer) run(seedID int) {
 	}
 
 	if len(entries) == 0 {
+		if _, have := i.store.FranchiseFetchedAt(seedID); have {
+			log.Printf("refresh of %d failed, keeping cached data", seedID)
+			i.finish(seedID, 0, nil)
+			return
+		}
+
+		for _, e := range errs {
+			if errors.Is(e, anilist.ErrAPIUnavailable) {
+				i.finish(seedID, 0, e)
+				return
+			}
+		}
 		i.finish(seedID, 0, fmt.Errorf("no entries found for %d", seedID))
 		return
 	}
@@ -120,4 +142,30 @@ func (i *Importer) finish(seedID, count int, err error) {
 		return
 	}
 	job.Status = StatusDone
+}
+
+func (i *Importer) StartCleanup(stop <-chan struct{}) {
+	for {
+		select {
+		case <-i.ticker.C:
+			i.sweep()
+		case <-stop:
+			i.ticker.Stop()
+			return
+		}
+	}
+}
+
+func (i *Importer) sweep() {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+
+	for id, job := range i.jobs {
+		if job.Status == StatusRunning {
+			continue
+		}
+		if job.EndedAt != nil && time.Since(*job.EndedAt) > config.MaxJobInMemoryPeriod {
+			delete(i.jobs, id)
+		}
+	}
 }

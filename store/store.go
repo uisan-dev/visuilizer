@@ -24,7 +24,7 @@ func Open(path string) (*Store, error) {
 		return nil, err
 	}
 
-	if err := db.AutoMigrate(&Entry{}, &Relation{}); err != nil {
+	if err := db.AutoMigrate(&Entry{}, &Relation{}, &SavedLayout{}, &SavedNode{}); err != nil {
 		return nil, err
 	}
 
@@ -156,6 +156,51 @@ func (s *Store) FranchiseFetchedAt(seedID int) (time.Time, bool) {
 		return time.Time{}, false
 	}
 	return entry.FetchedAt, true
+}
+
+func (s *Store) SaveLayout(seedID int, direction string, nodes []SavedNode) (*SavedLayout, error) {
+	layout := &SavedLayout{
+		SeedID:    seedID,
+		Direction: direction,
+		CreatedAt: time.Now(),
+	}
+
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(layout).Error; err != nil {
+			return err
+		}
+
+		for i := range nodes {
+			nodes[i].LayoutID = layout.ID
+		}
+
+		return tx.CreateInBatches(nodes, 500).Error
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return layout, nil
+}
+
+func (s *Store) LoadLayout(layoutID uint) (*SavedLayout, []SavedNode, error) {
+	var layout SavedLayout
+	if err := s.db.First(&layout, layoutID).Error; err != nil {
+		return nil, nil, err
+	}
+
+	var nodes []SavedNode
+	if err := s.db.Where("layout_id = ?", layoutID).Find(&nodes).Error; err != nil {
+		return nil, nil, err
+	}
+
+	return &layout, nodes, nil
+}
+
+func (s *Store) LoadLayoutsForFranchise(seedID int) ([]SavedLayout, error) {
+	var layouts []SavedLayout
+	err := s.db.Where("seed_id = ?", seedID).Order("created_at desc").Find(&layouts).Error
+	return layouts, err
 }
 
 func ToStoreEntry(e media.Entry, fetchTime time.Time) Entry {
