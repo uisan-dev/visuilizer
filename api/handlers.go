@@ -32,10 +32,11 @@ func (s *Server) HandleGetMedia(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, MediaResponse{
+	c.JSON(http.StatusOK, gin.H{"data": MediaResponse{
 		Entry:     ToEntryResponse(entry),
 		Relations: ToRelationResponses(relations),
-	})
+	}}
+)
 }
 
 func (s *Server) HandleGetFranchise(c *gin.Context) {
@@ -68,7 +69,7 @@ func (s *Server) HandleGetFranchise(c *gin.Context) {
 
 	resp.Relations = ToRelationResponses(relations)
 
-	c.JSON(http.StatusOK, resp)
+	c.JSON(http.StatusOK, gin.H{"data": resp})
 }
 
 func ToEntryResponse(e media.Entry) EntryResponse {
