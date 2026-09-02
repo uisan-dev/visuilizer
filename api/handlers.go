@@ -10,26 +10,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type EntryResponse struct {
-	ID       int    `json:"id"`
-	Title    string `json:"title"`
-	Format   string `json:"format"`
-	Episodes int    `json:"episodes"`
-	Year     int    `json:"year"`
-}
-
-type RelationResponse struct {
-	From int    `json:"from"`
-	To   int    `json:"to"`
-	Kind string `json:"kind"`
-}
-
-type FranchiseResponse struct {
-	SeedID    int                `json:"seed_id"`
-	Entries   []EntryResponse    `json:"entries"`
-	Relations []RelationResponse `json:"relations"`
-}
-
 func (s *Server) HandleHealth(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
@@ -41,16 +21,21 @@ func (s *Server) HandleGetMedia(c *gin.Context) {
 		return
 	}
 
-	entry, _, err := s.Client.FetchMedia(id)
+	entry, relations, err := s.Client.FetchMedia(id)
 	if errors.Is(err, anilist.ErrNotFound) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "No media with that ID"})
+		return
 	}
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to fetch media"})
+		c.JSON(http.StatusBadGateway, gin.H{"error": "Unable to fetch media"})
+		return
 	}
 
-	c.JSON(http.StatusOK, ToEntryResponse(entry))
+	c.JSON(http.StatusOK, MediaResponse{
+		Entry:     ToEntryResponse(entry),
+		Relations: ToRelationResponses(relations),
+	})
 }
 
 func (s *Server) HandleGetFranchise(c *gin.Context) {
@@ -81,23 +66,30 @@ func (s *Server) HandleGetFranchise(c *gin.Context) {
 		resp.Entries = append(resp.Entries, ToEntryResponse(e))
 	}
 
-	for _, r := range relations {
-		resp.Relations = append(resp.Relations, RelationResponse{
-			From: r.FromID,
-			To:   r.ToID,
-			Kind: string(r.Kind),
-		})
-	}
+	resp.Relations = ToRelationResponses(relations)
 
 	c.JSON(http.StatusOK, resp)
 }
 
 func ToEntryResponse(e media.Entry) EntryResponse {
 	return EntryResponse{
-		ID:       e.ID,
-		Title:    e.Title,
-		Format:   string(e.Format),
-		Episodes: e.Episodes,
-		Year:     e.Year,
+		ID:        e.ID,
+		Title:     e.Title,
+		Relations: nil,
+		Format:    string(e.Format),
+		Episodes:  e.Episodes,
+		Year:      e.Year,
 	}
+}
+
+func ToRelationResponses(rels []media.Relation) []RelationResponse {
+	out := make([]RelationResponse, 0, len(rels))
+	for _, r := range rels {
+		out = append(out, RelationResponse{
+			From: r.FromID,
+			To:   r.ToID,
+			Kind: string(r.Kind),
+		})
+	}
+	return out
 }

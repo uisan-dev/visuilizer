@@ -10,7 +10,7 @@ import (
 	"syscall"
 	"time"
 	"visuilizer/anilist"
-	"visuilizer/anilist/api"
+	"visuilizer/api"
 )
 
 func main() {
