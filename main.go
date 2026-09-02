@@ -1,23 +1,47 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"log"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 	"visuilizer/anilist"
+	"visuilizer/anilist/api"
 )
 
 func main() {
-	bakemonogatariID := 5081
+	// bakemonogatariID := 5081
 
 	client := anilist.NewClient()
+	server := api.NewServer(client)
 
-	entry, rel, err := client.FetchMedia(bakemonogatariID)
-
-	if err != nil {
-		log.Fatalf("couldn't fetch Bakemonogatari data: %v", err)
+	srv := &http.Server{
+		Addr:    ":8080",
+		Handler: server.Router(),
 	}
 
-	log.Println(entry, "\n", "\n")
-	for _, r := range rel {
-		log.Println(r)
+	go func() {
+		log.Println("Listening on port 8080")
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatalf("server listen: %v", err)
+		}
+	}()
+
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
+	<-stop
+
+	log.Println("Shutting down Visuilizer server")
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Printf("server shutdown: %v", err)
 	}
+
+	log.Println("Gracefully shut down")
 }

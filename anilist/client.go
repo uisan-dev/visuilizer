@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 	"visuilizer/config"
+	"visuilizer/debug"
 	"visuilizer/media"
 )
 
@@ -77,4 +78,46 @@ func (c *Client) FetchMedia(id int) (media.Entry, []media.Relation, error) {
 	relations := gqlResp.Data.Media.GetRelations()
 
 	return entry, relations, nil
+}
+
+func (c *Client) FetchFranchise(seedID int) ([]media.Entry, []media.Relation, []error) {
+	visited := map[int]bool{}
+	queue := []int{seedID}
+
+	errs := []error{}
+
+	var entries []media.Entry
+	var relations []media.Relation
+
+	for len(queue) > 0 {
+		id := queue[0]
+		queue = queue[1:]
+
+		if visited[id] {
+			continue
+		}
+		visited[id] = true
+
+		debug.Debugf("Visiting %d\n", id)
+
+		entry, rels, err := c.FetchMedia(id)
+		if err != nil {
+			debug.Debugf("FetchMedia error: %s\n", err.Error())
+			errs = append(errs, err)
+		}
+
+		entries = append(entries, entry)
+
+		for _, r := range rels {
+			relations = append(relations, r)
+			if !visited[r.ToID] {
+				queue = append(queue, r.ToID)
+				debug.Debugf("Added to queue: %d\n", r.ToID)
+			}
+		}
+
+		debug.Debugf("Queue length: %d\n", len(queue))
+	}
+
+	return entries, relations, nil
 }

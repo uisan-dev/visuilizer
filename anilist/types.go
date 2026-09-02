@@ -1,6 +1,9 @@
 package anilist
 
-import "visuilizer/media"
+import (
+	"visuilizer/debug"
+	"visuilizer/media"
+)
 
 type GraphQLRequest struct {
 	Query     string         `json:"query"`
@@ -38,7 +41,7 @@ type Media struct {
 
 func (m *Media) ToEntry() media.Entry {
 	title := m.Title.Romaji
-	if *m.Title.English != "" {
+	if m.Title.English != nil && *m.Title.English != "" {
 		title = *m.Title.English
 	}
 
@@ -72,6 +75,7 @@ func (m *Media) GetRelations() []media.Relation {
 			ToID:   re.Node.ID,
 			Kind:   re.RelationType,
 		})
+		debug.Debugf("GetRelations: FromID: %d - ToID: %d - Kind: %s\n", m.ID, re.Node.ID, re.RelationType)
 
 	}
 
